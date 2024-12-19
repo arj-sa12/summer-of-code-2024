@@ -1,0 +1,15 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "admin@dsoc24"
+    },{"id":2,
+      "username": "cashier",
+      "password": "cashier@dsoc24"
+}
+  ],
+  "records": [
+    
+  ]
+}

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Cashier</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+body {
+    background: #f4f4f9;
+    color: #000000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    transition: background 0.3s, color 0.3s;
+}
+
+.container {
+    max-width: 600px;
+    padding: 20px;
+    background: #ffffff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    transition: background 0.3s, box-shadow 0.3s;
+}
+nav{background-color: #ffffff;}
+table {
+    width: 100%;
+    margin-top: 20px;
+}
+
+th, td {
+    text-align: left;
+    padding: 8px;
+}
+
+
+.error {
+    color: red;
+    margin-top: 10px;
+}
+
+.success {
+    font-size: 18px;
+    color: green;
+}
+
+</style>  
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="login-page" class="container text-center">
+        <h2 class="mb-4">Cashier Login</h2>
+        <div class="mb-3">
+            <input type="text" id="login-username" class="form-control" placeholder="Username" />
+        </div>
+        <div class="mb-3">
+            <input type="password" id="login-password" class="form-control" placeholder="Password" />
+        </div>
+        <button class="btn btn-primary w-100" onclick="authenticate()">Login</button>
+        <p id="login-error-msg" class="error mt-3"></p>
+        <p class="mt-3">Not registered yet? <a href="#" onclick="showSignupPage()">Sign Up</a></p>
+    </div>
+
+    <!-- Sign-Up Page -->
+    <div id="signup-page" class="container text-center" style="display: none;">
+        <h2 class="mb-4">Cashier Sign Up</h2>
+        <div class="mb-3">
+            <input type="text" id="signup-username" class="form-control" placeholder="New Username" />
+        </div>
+        <div class="mb-3">
+            <input type="password" id="signup-password" class="form-control" placeholder="New Password" />
+        </div>
+        <button class="btn btn-primary w-100" onclick="register()">Sign Up</button>
+        <p id="signup-error-msg" class="error mt-3"></p>
+        <p class="mt-3">Already registered? <a href="#" onclick="showLoginPage()">Log In</a></p>
+    </div>
+
+    <!-- Cashier Page -->
+<div id="cashier-page" class="container text-center" style="display: none;">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
+      <a class="navbar-brand" href="#">Cashier</a>
+      <div id="login-timer" class="me-auto"></div> <!-- Timer placeholder -->
+      <div class="ms-auto">
+          <button class="btn btn-secondary me-2">Profile</button>
+          <button class="btn btn-danger" onclick="logout()">Logout</button>
+        
+
+
+      </div>
+  </nav>
+  <h2 class="mb-4">Welcome</h2>
+  <form onsubmit="addRecord(event)">
+      <div class="mb-3">
+          <input type="text" id="customer-name" class="form-control" placeholder="Customer Name" required />
+      </div>
+      <div class="mb-3">
+          <input type="tel" id="customer-phone" class="form-control" placeholder="Phone Number" required />
+      </div>
+      <div class="mb-3">
+          <input type="number" id="amount" class="form-control" placeholder="Amount" required />
+      </div>
+      <button class="btn btn-primary w-100" class="add">Add</button>
+  </form>
+  
+  <!-- Table to display records -->
+  <table id="records-table" class="table table-striped mt-4">
+      <thead>
+          <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Amount</th>
+          </tr>
+      </thead>
+      <tbody id="records-list"></tbody>
+  </table>
+</div>
+
+
+    <script>
+        // Show Login Page
+        function showLoginPage() {
+            document.getElementById('signup-page').style.display = 'none';
+            document.getElementById('login-page').style.display = 'block';
+        }
+
+        // Show Sign-Up Page
+        function showSignupPage() {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('signup-page').style.display = 'block';
+        }
+
+        // Authenticate User
+        async function authenticate() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const errorMsg = document.getElementById('login-error-msg');
+
+            try {
+                const response = await fetch(`http://localhost:3000/users?username=${username}&password=${password}`);
+                const users = await response.json();
+
+                if (users.length > 0) {
+                    const loggedInUser = users[0];
+                    localStorage.setItem('isLoggedIn', 'true');  // Set login status
+                    localStorage.setItem('username', loggedInUser.username);  // Store username for reference
+                    document.getElementById('login-page').style.display = 'none';
+                    document.getElementById('cashier-page').style.display = 'block';
+                    loadRecords(loggedInUser.id);  // Load records for the logged-in user
+                } else {
+                    errorMsg.textContent = 'Invalid username or password.';
+                }
+            } catch (error) {
+                errorMsg.textContent = 'An error occurred. Please try again later.';
+            }
+        }
+
+        // Register User
+        async function register() {
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
+            const errorMsg = document.getElementById('signup-error-msg');
+
+            try {
+                const checkResponse = await fetch(`http://localhost:3000/users?username=${username}`);
+                const existingUsers = await checkResponse.json();
+
+                if (existingUsers.length > 0) {
+                    errorMsg.textContent = 'Username is already taken.';
+                    return;
+                }
+
+                const response = await fetch('http://localhost:3000/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    showLoginPage();
+                } else {
+                    errorMsg.textContent = 'An error occurred during registration.';
+                }
+            } catch (error) {
+                errorMsg.textContent = 'An error occurred. Please try again later.';
+            }
+        }
+
+        // Logout User
+        function logout() {
+            localStorage.removeItem('isLoggedIn');  // Remove login status
+            localStorage.removeItem('username');  // Remove the stored username
+            document.getElementById('cashier-page').style.display = 'none';  // Hide cashier page
+            showLoginPage();  // Show login page
+        }
+
+        // Add Record
+        async function addRecord(event) {
+    event.preventDefault();
+    const name = document.getElementById('customer-name').value;
+    const phone = document.getElementById('customer-phone').value;
+    const amount = document.getElementById('amount').value;
+    const username = localStorage.getItem('username');  // Get the logged-in user's username
+
+    try {
+        const response = await fetch('http://localhost:3000/records', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, phone, amount, username })  // Save the username with the record
+        });
+
+        if (response.ok) {
+            const record = await response.json();
+            displayRecord(record);  // Display the added record
+        }
+    } catch (error) {
+        console.error('Error adding record:', error);
+    }
+}
+
+function displayRecord(record) {
+    const list = document.getElementById('records-list');
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>${record.name}</td>
+        <td>${record.phone}</td>
+        <td>${record.amount}</td>
+    `;
+    list.appendChild(row);
+}
+
+        // Load records for a specific user
+       // Load records for the specific user based on their username
+async function loadRecords() {
+    const username = localStorage.getItem('username');  // Get the logged-in user's username
+
+    try {
+        const response = await fetch(`http://localhost:3000/records?username=${username}`);  // Filter by username
+        const records = await response.json();
+
+        // Clear the table before displaying new records
+        const recordsList = document.getElementById('records-list');
+        recordsList.innerHTML = '';
+
+        records.forEach(displayRecord);  // Display each record
+    } catch (error) {
+        console.error('Error loading records:', error);
+    }
+}
+
+
+        // Ensure user stays logged in
+        if (localStorage.getItem('isLoggedIn')) {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('cashier-page').style.display = 'block';
+            loadRecords(localStorage.getItem('username'));  // Load records for the logged-in user
+        }
+
+
+ 
+
+        
+
+
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
